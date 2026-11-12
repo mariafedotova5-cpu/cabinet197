@@ -1,9 +1,8 @@
 /* ============================================================
    ПОДКЛЮЧЕНИЕ К SUPABASE
-   Замените значения на свои из Supabase → Settings → API.
    ============================================================ */
-const SUPABASE_URL = 'https://ВАШ_ПРОЕКТ.supabase.co';
-const SUPABASE_KEY = 'ВАШ_ANON_PUBLIC_KEY';
+const SUPABASE_URL = 'https://wzsiyaiglwlmrjawzlfx.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_VG-dBW79sG160FL1BGtbzQ_7pnoZ7uV';
 
 // Заголовки для всех запросов к Supabase
 function supabaseHeaders(extra = {}) {
@@ -18,12 +17,12 @@ function supabaseHeaders(extra = {}) {
 /* ============================================================
    КОНСТАНТЫ БИЗНЕС-ЛОГИКИ
    ============================================================ */
-const DAY_START_MIN = 9 * 60;
-const DAY_END_MIN   = 21 * 60;
-const SLOT_MIN      = 15;
-const MIN_DURATION  = 60;
-const MAX_DURATION  = 8 * 60;
-const BREAK_MIN     = 15;
+const DAY_START_MIN = 9 * 60;   // 09:00
+const DAY_END_MIN   = 21 * 60;  // 21:00
+const SLOT_MIN      = 15;       // шаг 15 минут
+const MIN_DURATION  = 60;       // минимум 1 час
+const MAX_DURATION  = 8 * 60;   // максимум 8 часов
+const BREAK_MIN     = 15;       // обязательный перерыв
 
 const MONTH_NAMES = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
 
@@ -83,7 +82,7 @@ function escapeHtml(s) {
 }
 
 /* ============================================================
-   СЛОЙ РАБОТЫ С SUPABASE (заменяет Apps Script)
+   СЛОЙ РАБОТЫ С SUPABASE
    ============================================================ */
 
 // GET: все брони
@@ -118,31 +117,24 @@ async function saveBookingToAPI(booking) {
     throw new Error(`HTTP ${res.status}: ${text}`);
   }
   const data = await res.json();
-  if (!Array.isArray(data) || data.length === 0) {
-    throw new Error('Пустой ответ при создании брони');
-  }
+  if (!Array.isArray(data) || data.length === 0) throw new Error('Пустой ответ при создании');
   return data[0];
 }
 
-// DELETE: отменить бронь по id и проверить код.
-// Сначала GET по id — проверяем код, затем DELETE.
+// DELETE: отменить бронь
 async function cancelBookingOnAPI(id, code) {
-  // 1. Получаем бронь по id
   const getRes = await fetch(
     `${SUPABASE_URL}/rest/v1/bookings?id=eq.${encodeURIComponent(id)}&select=*`,
     { headers: supabaseHeaders() }
   );
   if (!getRes.ok) throw new Error('HTTP ' + getRes.status);
   const rows = await getRes.json();
-  if (!Array.isArray(rows) || rows.length === 0) {
-    throw new Error('Бронь не найдена');
-  }
-  const stored = rows[0];
-  if (String(stored.code).trim().toUpperCase() !== String(code).trim().toUpperCase()) {
+  if (!Array.isArray(rows) || rows.length === 0) throw new Error('Бронь не найдена');
+  
+  if (String(rows[0].code).trim().toUpperCase() !== String(code).trim().toUpperCase()) {
     throw new Error('Неверный код');
   }
 
-  // 2. Удаляем
   const delRes = await fetch(
     `${SUPABASE_URL}/rest/v1/bookings?id=eq.${encodeURIComponent(id)}`,
     { method: 'DELETE', headers: supabaseHeaders() }
@@ -237,7 +229,7 @@ function selectDate(key) {
 }
 
 /* ============================================================
-   ПАНЕЛЬ ДНЯ
+   ПАНЕЛЬ ДНЯ И СЛОТЫ
    ============================================================ */
 const slotsWrap = document.getElementById('slotsWrap');
 const selectedDayTitle = document.getElementById('selectedDayTitle');
@@ -288,16 +280,13 @@ function renderDayPanel() {
 
   const dayBookings = bookingsForDate(state.selectedDateKey);
   dayBadge.textContent = dayBookings.length ? `${dayBookings.length} бронь(и)` : 'свободно';
+  
   renderSlotsGrid(dayBookings);
   renderBookingForm(dayBookings);
   renderBookingList();
 }
 
-/* ============================================================
-   СЕТКА СЛОТОВ
-   ============================================================ */
 let slotMap = {};
-
 function buildSlotMap(dayBookings) {
   const map = {};
   const nowMin = nowMinutesForDate(parseDateKey(state.selectedDateKey));
@@ -433,4 +422,314 @@ function formatDuration(min) {
 /* ============================================================
    ФОРМА
    ============================================================ */
-function renderBookingForm(
+function renderBookingForm(dayBookings) {
+  bookingForm.style.display = 'block';
+  startSelect.innerHTML = '';
+  for (let m = DAY_START_MIN; m < DAY_END_MIN; m += SLOT_MIN) {
+    const info = slotMap[m];
+    const opt = document.createElement('option');
+    opt.value = m;
+    opt.textContent = `${fmtTime(m)}–${fmtTime(m + SLOT_MIN)}`;
+    if (info.type !== 'free') {
+      opt.textContent += ' — ' + (info.type === 'busy' ? 'занято' : info.type === 'break' ? 'перерыв' : 'прошло');
+    }
+    startSelect.appendChild(opt);
+  }
+  durationSelect.innerHTML = '';
+  const startVal = state.selStart != null ? state.selStart : DAY_START_MIN;
+  const maxPossible = Math.min(MAX_DURATION, DAY_END_MIN - startVal);
+  for (let d = MIN_DURATION; d <= maxPossible; d += SLOT_MIN) {
+    const opt = document.createElement('option');
+    opt.value = d;
+    opt.textContent = formatDuration(d);
+    durationSelect.appendChild(opt);
+  }
+  syncFormWithSelection();
+}
+
+function syncFormWithSelection() {
+  if (state.selStart != null) {
+    const hasOption = [...startSelect.options].some(o => Number(o.value) === state.selStart);
+    if (hasOption) startSelect.value = String(state.selStart);
+  }
+  const startVal = state.selStart != null ? state.selStart : Number(startSelect.value || DAY_START_MIN);
+  const currentDuration = (state.selStart != null && state.selEnd != null) ? state.selEnd - state.selStart : MIN_DURATION;
+
+  durationSelect.innerHTML = '';
+  const maxPossible = Math.min(MAX_DURATION, DAY_END_MIN - startVal);
+  for (let d = MIN_DURATION; d <= maxPossible; d += SLOT_MIN) {
+    const opt = document.createElement('option');
+    opt.value = d;
+    opt.textContent = formatDuration(d);
+    durationSelect.appendChild(opt);
+  }
+  const target = Math.min(currentDuration, maxPossible);
+  const rounded = Math.floor(target / SLOT_MIN) * SLOT_MIN;
+  if ([...durationSelect.options].some(o => Number(o.value) === rounded)) {
+    durationSelect.value = String(rounded);
+  }
+  updateFormHint();
+  validateFormAndUpdateButton();
+}
+
+function updateFormHint() {
+  const start = Number(startSelect.value);
+  const dur = Number(durationSelect.value);
+  if (!Number.isFinite(start) || !Number.isFinite(dur)) { intervalHint.textContent = '—'; return; }
+  intervalHint.textContent = `Интервал: ${fmtTime(start)}–${fmtTime(start + dur)} (${formatDuration(dur)})`;
+}
+
+function validateRange(start, end) {
+  if (start == null || end == null) return { ok: false, message: 'Выберите диапазон.' };
+  if (start < DAY_START_MIN || end > DAY_END_MIN) return { ok: false, message: 'Время должно быть в интервале 09:00–21:00.' };
+  if (start % SLOT_MIN !== 0 || end % SLOT_MIN !== 0) return { ok: false, message: 'Шаг выбора — 15 минут.' };
+  const dur = end - start;
+  if (dur < MIN_DURATION) return { ok: false, message: 'Минимум 1 час.' };
+  if (dur > MAX_DURATION) return { ok: false, message: 'Максимум 8 часов.' };
+
+  const dateObj = parseDateKey(state.selectedDateKey);
+  const nowMin = nowMinutesForDate(dateObj);
+  if (nowMin >= 0 && start < nowMin) return { ok: false, message: 'Нельзя бронировать время в прошлом.' };
+
+  for (let m = start; m < end; m += SLOT_MIN) {
+    const info = slotMap[m];
+    if (!info) continue;
+    if (info.type === 'busy') return { ok: false, message: `Интервал ${fmtTime(m)}–${fmtTime(m + SLOT_MIN)} уже занят.` };
+    if (info.type === 'break') return { ok: false, message: 'Между бронями нужен перерыв 15 минут.' };
+    if (info.type === 'past') return { ok: false, message: 'Нельзя бронировать время в прошлом.' };
+  }
+  return { ok: true, message: '' };
+}
+
+function validateFormAndUpdateButton() {
+  const start = Number(startSelect.value);
+  const dur = Number(durationSelect.value);
+  const name = nameInput.value.trim();
+  const contact = contactInput.value.trim();
+  let ok = true;
+  if (!state.selectedDateKey || !state.apiAvailable) ok = false;
+  if (!Number.isFinite(start) || !Number.isFinite(dur)) ok = false;
+  if (ok) {
+    const rangeCheck = validateRange(start, start + dur);
+    if (!rangeCheck.ok) ok = false;
+  }
+  if (name.length < 2 || contact.length < 2) ok = false;
+  bookBtn.disabled = !ok;
+}
+
+startSelect.addEventListener('change', () => {
+  hideFormMsg(); codeBox.style.display = 'none';
+  const start = Number(startSelect.value);
+  state.selStart = start;
+  let dur = Number(durationSelect.value);
+  if (!Number.isFinite(dur) || dur < MIN_DURATION) dur = MIN_DURATION;
+  dur = Math.min(dur, MAX_DURATION, DAY_END_MIN - start);
+  dur = Math.floor(dur / SLOT_MIN) * SLOT_MIN;
+  if (dur < MIN_DURATION) dur = MIN_DURATION;
+  state.selEnd = start + dur;
+  updateSelectionUI();
+});
+
+durationSelect.addEventListener('change', () => {
+  hideFormMsg(); codeBox.style.display = 'none';
+  const start = Number(startSelect.value);
+  const dur = Number(durationSelect.value);
+  state.selStart = start;
+  state.selEnd = start + dur;
+  updateSelectionUI();
+});
+
+nameInput.addEventListener('input', () => { hideFormMsg(); validateFormAndUpdateButton(); });
+contactInput.addEventListener('input', () => { hideFormMsg(); validateFormAndUpdateButton(); });
+
+/* ============================================================
+   ОТПРАВКА БРОНИ (КНОПКА "ЗАБРОНИРОВАТЬ")
+   ============================================================ */
+bookBtn.addEventListener('click', async () => {
+  hideFormMsg();
+  codeBox.style.display = 'none';
+
+  const start = Number(startSelect.value);
+  const dur = Number(durationSelect.value);
+  const end = start + dur;
+  const name = nameInput.value.trim();
+  const contact = contactInput.value.trim();
+
+  if (name.length < 2) { showFormMsg('Укажите имя (минимум 2 символа).', 'error'); return; }
+  if (contact.length < 2) { showFormMsg('Укажите контакт (минимум 2 символа).', 'error'); return; }
+
+  const rangeCheck = validateRange(start, end);
+  if (!rangeCheck.ok) { showFormMsg(rangeCheck.message, 'error'); return; }
+
+  // Проверка на свежих данных с сервера (защита от одновременного бронирования)
+  await refreshBookings();
+  if (!state.apiAvailable) {
+    showFormMsg('Не удалось проверить занятость. Попробуйте позже.', 'error');
+    return;
+  }
+
+  const fresh = bookingsForDate(state.selectedDateKey);
+  for (const b of fresh) {
+    if (start < b.end && end > b.start) {
+      showFormMsg('Диапазон пересекается с существующей бронью.', 'error');
+      renderDayPanel();
+      return;
+    }
+  }
+  const candidate = { name, contact };
+  for (const b of fresh) {
+    if (samePerson(b, candidate)) continue;
+    if (start >= b.end && start < b.end + BREAK_MIN) { showFormMsg('Между бронями нужен перерыв 15 минут.', 'error'); return; }
+    if (end <= b.start && end + BREAK_MIN > b.start) { showFormMsg('Между бронями нужен перерыв 15 минут.', 'error'); return; }
+  }
+
+  const code = generateCode();
+  const newBooking = {
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
+    date: state.selectedDateKey,
+    start, end, name, contact, code,
+  };
+
+  bookBtn.disabled = true;
+  bookBtn.textContent = 'Отправка...';
+
+  try {
+    await saveBookingToAPI(newBooking);
+    await refreshBookings();
+
+    codeValue.textContent = code;
+    codeBox.style.display = 'block';
+    showFormMsg('Бронь создана! Сохраните код для отмены.', 'success');
+
+    state.selStart = null;
+    state.selEnd = null;
+    renderCalendar();
+    renderDayPanel();
+  } catch (e) {
+    console.error(e);
+    showFormMsg('Не удалось сохранить бронь. Проверьте подключение и попробуйте ещё раз.', 'error');
+  } finally {
+    bookBtn.disabled = false;
+    bookBtn.textContent = 'Забронировать';
+  }
+});
+
+/* ============================================================
+   СПИСОК БРОНЕЙ И ОТМЕНА
+   ============================================================ */
+function renderBookingList() {
+  bookingList.innerHTML = '';
+  if (!state.selectedDateKey) {
+    bookingList.innerHTML = '<div class="empty-state">—</div>';
+    return;
+  }
+  if (!state.apiAvailable) {
+    bookingList.innerHTML = '<div class="empty-state">Нет данных (API недоступен).</div>';
+    return;
+  }
+  const list = bookingsForDate(state.selectedDateKey);
+  if (list.length === 0) {
+    bookingList.innerHTML = '<div class="empty-state">На этот день броней пока нет.</div>';
+    return;
+  }
+  for (const b of list) {
+    const item = document.createElement('div');
+    item.className = 'booking-item';
+    item.innerHTML = `
+      <div class="b-time">${fmtTime(b.start)}–${fmtTime(b.end)} <span style="font-weight:400;color:var(--muted);">(${formatDuration(b.end - b.start)})</span></div>
+      <div><strong>${escapeHtml(b.name)}</strong></div>
+      <div class="b-meta">${escapeHtml(b.contact)}</div>
+      <div class="b-actions"><button class="btn btn-danger" data-cancel-id="${b.id}">Отменить</button></div>`;
+    bookingList.appendChild(item);
+  }
+  bookingList.querySelectorAll('[data-cancel-id]').forEach(btn => {
+    btn.addEventListener('click', () => openCancelModal(btn.dataset.cancelId));
+  });
+}
+
+const cancelModal = document.getElementById('cancelModal');
+const cancelModalText = document.getElementById('cancelModalText');
+const cancelCodeInput = document.getElementById('cancelCodeInput');
+const cancelMsg = document.getElementById('cancelMsg');
+const cancelModalClose = document.getElementById('cancelModalClose');
+const cancelModalConfirm = document.getElementById('cancelModalConfirm');
+let cancelTargetId = null;
+
+function openCancelModal(bookingId) {
+  const b = state.allBookings.find(x => x.id === bookingId);
+  if (!b) return;
+  cancelTargetId = bookingId;
+  cancelModalText.textContent = `Отмена брони ${fmtTime(b.start)}–${fmtTime(b.end)} (${b.name}). Введите код брони.`;
+  cancelCodeInput.value = '';
+  cancelMsg.className = 'msg error';
+  cancelMsg.textContent = '';
+  cancelModal.classList.add('show');
+  setTimeout(() => cancelCodeInput.focus(), 50);
+}
+
+function closeCancelModal() {
+  cancelModal.classList.remove('show');
+  cancelTargetId = null;
+}
+
+cancelModalClose.addEventListener('click', closeCancelModal);
+cancelModal.addEventListener('click', (e) => { if (e.target === cancelModal) closeCancelModal(); });
+
+cancelModalConfirm.addEventListener('click', async () => {
+  const entered = cancelCodeInput.value.trim().toUpperCase();
+  if (!entered) {
+    cancelMsg.textContent = 'Введите код брони.';
+    cancelMsg.className = 'msg error show';
+    return;
+  }
+
+  cancelModalConfirm.disabled = true;
+  cancelModalConfirm.textContent = 'Отмена...';
+
+  try {
+    await cancelBookingOnAPI(cancelTargetId, entered);
+    await refreshBookings();
+    closeCancelModal();
+    renderCalendar();
+    renderDayPanel();
+    showFormMsg('Бронь отменена.', 'info');
+  } catch (e) {
+    console.error(e);
+    cancelMsg.textContent = e.message.includes('Неверный код') ? 'Неверный код брони.' : 'Не удалось отменить бронь. Попробуйте позже.';
+    cancelMsg.className = 'msg error show';
+  } finally {
+    cancelModalConfirm.disabled = false;
+    cancelModalConfirm.textContent = 'Отменить бронь';
+  }
+});
+
+/* ============================================================
+   ИНИЦИАЛИЗАЦИЯ
+   ============================================================ */
+(async function init() {
+  const now = new Date();
+  state.viewYear = now.getFullYear();
+  state.viewMonth = now.getMonth();
+
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  for (let i = 0; i < 60; i++) {
+    const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() + i, 12, 0, 0, 0);
+    if (isWeekend(d)) {
+      state.selectedDateKey = dateKey(d.getFullYear(), d.getMonth(), d.getDate());
+      state.viewYear = d.getFullYear();
+      state.viewMonth = d.getMonth();
+      break;
+    }
+  }
+
+  renderCalendar();
+  slotsWrap.innerHTML = '<div class="empty-state">Загрузка броней...</div>';
+
+  await refreshBookings();
+  renderCalendar();
+  renderDayPanel();
+
+  if (!state.apiAvailable) {
+    showFormMsg('Не удалось подключиться к серверу Supabase. Проверьте настройки доступа.', 'error');
+  }
+})();
