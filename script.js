@@ -1,5 +1,5 @@
 // ==========================================
-// 1. НАСТРОЙКИ
+// 1. НАСТРОЙКИ SUPABASE
 // ==========================================
 const SUPABASE_URL = 'https://wzsiyaiglwlmrjawzlfx.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_VG-dBW79sG160FL1BGtbzQ_7pnoZ7uV';
@@ -20,32 +20,40 @@ const MIN_DUR = 60;
 const MAX_DUR = 8 * 60;
 const MONTHS = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
 
-let state = { y: new Date().getFullYear(), m: new Date().getMonth(), date: null, start: null, end: null, bookings: [], error: null };
+let state = { 
+  y: new Date().getFullYear(), 
+  m: new Date().getMonth(), 
+  date: null, 
+  bookings: [], 
+  error: null 
+};
 
 function fmt(mins) { return String(Math.floor(mins / 60)).padStart(2, '0') + ':' + String(mins % 60).padStart(2, '0'); }
 function getKey(y, m, d) { return `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`; }
 function isWeekend(d) { return d.getDay() === 0 || d.getDay() === 6; }
+function durationStr(mins) {
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  if (h && m) return `${h} ч ${m} мин`;
+  if (h) return `${h} ч`;
+  return `${m} мин`;
+}
 
 // ==========================================
-// 3. ЗАПРОСЫ К БАЗЕ (С ОТЛАДКОЙ)
+// 3. ЗАПРОСЫ К БАЗЕ
 // ==========================================
 async function loadData() {
   try {
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/bookings?select=*`, {
-      headers: HEADERS
-    });
-    
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/bookings?select=*`, { headers: HEADERS });
     if (!res.ok) {
-      // Если сервер вернул ошибку (401, 403, 404 и т.д.)
       const text = await res.text();
       throw new Error(`Ошибка сервера ${res.status}. Ответ: ${text}`);
     }
-    
     state.bookings = await res.json();
-    state.error = null; // Ошибок нет
+    state.error = null;
   } catch (e) {
     console.error('ОШИБКА:', e);
-    state.error = e.message; // Сохраняем текст ошибки для показа
+    state.error = e.message;
     state.bookings = [];
   }
 }
@@ -73,23 +81,26 @@ async function deleteBooking(id, code) {
 }
 
 // ==========================================
-// 4. ОТРИСОВКА
+// 4. ЭЛЕМЕНТЫ СТРАНИЦЫ
 // ==========================================
 const el = {
   days: document.getElementById('daysGrid'), title: document.getElementById('calendarTitle'),
   prev: document.getElementById('prevMonth'), next: document.getElementById('nextMonth'),
-  slotsWrap: document.getElementById('slotsWrap'), dayTitle: document.getElementById('selectedDayTitle'),
-  badge: document.getElementById('dayBadge'), form: document.getElementById('bookingForm'),
-  startSel: document.getElementById('startSelect'), durSel: document.getElementById('durationSelect'),
-  name: document.getElementById('nameInput'), contact: document.getElementById('contactInput'),
-  hint: document.getElementById('intervalHint'), msg: document.getElementById('formMsg'),
+  dayTitle: document.getElementById('selectedDayTitle'), dayInfoWrap: document.getElementById('dayInfoWrap'),
+  busyList: document.getElementById('busyList'), freeList: document.getElementById('freeList'),
+  form: document.getElementById('bookingForm'), startSel: document.getElementById('startSelect'),
+  durSel: document.getElementById('durationSelect'), name: document.getElementById('nameInput'),
+  contact: document.getElementById('contactInput'), msg: document.getElementById('formMsg'),
   btn: document.getElementById('bookBtn'), codeBox: document.getElementById('codeBox'),
-  codeVal: document.getElementById('codeValue'), list: document.getElementById('bookingList'),
+  codeVal: document.getElementById('codeValue'),
   modal: document.getElementById('cancelModal'), modalText: document.getElementById('cancelModalText'),
   modalInput: document.getElementById('cancelCodeInput'), modalMsg: document.getElementById('cancelMsg'),
   modalClose: document.getElementById('cancelModalClose'), modalConfirm: document.getElementById('cancelModalConfirm')
 };
 
+// ==========================================
+// 5. ОТРИСОВКА КАЛЕНДАРЯ
+// ==========================================
 function renderCalendar() {
   el.title.textContent = `${MONTHS[state.m]} ${state.y}`;
   el.days.innerHTML = '';
@@ -113,126 +124,155 @@ function renderCalendar() {
 
     const div = document.createElement('div');
     div.className = cls; div.textContent = d;
-    if (isW && !isPast) div.onclick = () => { state.date = key; state.start = null; state.end = null; el.codeBox.style.display = 'none'; renderCalendar(); renderDay(); };
+    if (isW && !isPast) div.onclick = () => { state.date = key; el.codeBox.style.display = 'none'; renderCalendar(); renderDay(); };
     el.days.appendChild(div);
   }
 }
 
+// ==========================================
+// 6. ОТРИСОВКА ДНЯ (СПИСКИ И ФОРМА)
+// ==========================================
 function renderDay() {
   if (!state.date) return;
   const dObj = new Date(state.date);
   el.dayTitle.textContent = `${dObj.getDay() === 6 ? 'Суббота' : 'Воскресенье'}, ${dObj.getDate()} ${MONTHS[dObj.getMonth()].toLowerCase()} ${dObj.getFullYear()}`;
 
-  // ВЫВОДИМ ОШИБКУ НА ЭКРАН, ЕСЛИ ОНА ЕСТЬ
   if (state.error) {
-    el.slotsWrap.innerHTML = `<div class="msg error show" style="word-break: break-all; font-family: monospace; font-size: 12px; line-height: 1.4;">
-      <b>Ошибка связи с базой:</b><br>${state.error}<br><br>
-      <i>Проверьте вкладку Network (Сеть) в консоли (F12).</i>
-    </div>`;
-    el.form.style.display = 'none';
+    el.dayInfoWrap.style.display = 'none';
+    document.getElementById('slotsWrap').innerHTML = `<div class="msg error show" style="word-break: break-all; font-family: monospace; font-size: 12px; line-height: 1.4;"><b>Ошибка связи с базой:</b><br>${state.error}</div>`;
     return;
   }
 
+  el.dayInfoWrap.style.display = 'block';
   const dayBookings = state.bookings.filter(b => b.date === state.date).sort((a,b) => a.start - b.start);
-  el.badge.textContent = dayBookings.length ? `${dayBookings.length} бронь(и)` : 'свободно';
-  renderSlots(dayBookings); renderForm(dayBookings); renderList(dayBookings);
-}
 
-function renderSlots(dayBookings) {
-  el.slotsWrap.innerHTML = '';
-  const grid = document.createElement('div'); grid.className = 'slots-grid'; grid.id = 'slotsGrid';
+  // 1. Заполняем список ЗАНЯТО
+  el.busyList.innerHTML = '';
+  if (!dayBookings.length) {
+    el.busyList.innerHTML = '<div class="empty-state">Нет броней. Весь день свободен.</div>';
+  } else {
+    dayBookings.forEach(b => {
+      const div = document.createElement('div'); div.className = 'list-item busy-item';
+      div.innerHTML = `<div><div class="b-name">${fmt(b.start)}–${fmt(b.end)} (${b.name})</div><div class="b-meta">${b.contact}</div></div><button class="btn btn-danger" style="width:auto; padding: 6px 10px; font-size: 12px;" onclick="openModal('${b.id}', '${b.name}')">Отменить</button>`;
+      el.busyList.appendChild(div);
+    });
+  }
+
+  // 2. Заполняем список СВОБОДНО
+  el.freeList.innerHTML = '';
   const now = new Date();
-  const nowMins = (now.getHours() * 60 + now.getMinutes());
   const isToday = state.date === getKey(now.getFullYear(), now.getMonth(), now.getDate());
+  const nowMins = now.getHours() * 60 + now.getMinutes();
 
-  for (let m = DAY_START; m < DAY_END; m += SLOT_STEP) {
-    const div = document.createElement('div'); div.className = 'slot'; div.dataset.min = m;
-    div.textContent = `${fmt(m)}–${fmt(m+15)}`;
-    let type = 'free', booking = null;
+  let currentStart = DAY_START;
+  let hasFree = false;
 
-    for (const b of dayBookings) { if (m >= b.start && m < b.end) { type = 'busy'; booking = b; break; } }
-    if (type === 'free') {
-      for (const b of dayBookings) {
-        if (m >= b.end && m < b.end + BREAK) {
-          const nextB = dayBookings.find(x => x.start === m);
-          if (nextB && nextB.name === b.name && nextB.contact === b.contact) continue;
-          type = 'break'; break;
-        }
+  dayBookings.forEach(b => {
+    if (b.start > currentStart) {
+      let end = b.start;
+      // Учитываем перерыв (следующая бронь не может начаться за 15 минут до этой)
+      let prevEnd = (currentStart > DAY_START) ? currentStart : DAY_START; 
+      
+      // Если это не первая бронь, вычитаем 15 минут перерыва у предыдущей
+      let actualEnd = b.start;
+      if (b.start > currentStart) {
+         actualEnd = b.start - BREAK; 
+      }
+      
+      if (actualEnd > currentStart) {
+         hasFree = true;
+         const div = document.createElement('div'); div.className = 'list-item free-item';
+         div.innerHTML = `<div><div class="b-name">${fmt(currentStart)}–${fmt(actualEnd)}</div></div>`;
+         el.freeList.appendChild(div);
       }
     }
-    if (isToday && m + SLOT_STEP <= nowMins) type = 'past';
-
-    if (type === 'busy') {
-      div.classList.add('busy');
-      div.innerHTML = `<span>${fmt(m)}–${fmt(m+15)}</span><span class="slot-name">${booking.name}</span><div class="tooltip"><b>${booking.name}</b><br>${booking.contact}</div>`;
-    } else if (type === 'break') {
-      div.classList.add('break'); div.onclick = () => showMsg('Между бронями нужен перерыв 15 минут.', 'error');
-    } else if (type === 'past') {
-      div.classList.add('past'); div.onclick = () => showMsg('Это время уже прошло.', 'error');
-    } else {
-      div.onclick = () => clickSlot(m);
-    }
-
-    if (state.start !== null && state.end !== null && m >= state.start && m < state.end) div.classList.add('selected');
-    grid.appendChild(div);
-  }
-  el.slotsWrap.appendChild(grid);
-}
-
-function clickSlot(m) {
-  hideMsg(); el.codeBox.style.display = 'none';
-  if (state.start === null) { state.start = m; state.end = m + SLOT_STEP; }
-  else if (m === state.start && state.end === state.start + SLOT_STEP) { state.start = null; state.end = null; }
-  else if (m < state.start) { state.start = m; state.end = m + SLOT_STEP; }
-  else {
-    if (m + SLOT_STEP - state.start > MAX_DUR) { showMsg('Максимум 8 часов.', 'error'); return; }
-    state.end = m + SLOT_STEP;
-  }
-  updateUI();
-}
-
-function updateUI() {
-  document.querySelectorAll('.slot').forEach(el => {
-    const m = Number(el.dataset.min);
-    el.classList.toggle('selected', state.start !== null && state.end !== null && m >= state.start && m < state.end);
+    currentStart = b.end + BREAK; // Следующее окно может начаться только через 15 минут
   });
-  if (state.start !== null && state.end !== null) el.hint.textContent = `Выбрано: ${fmt(state.start)}–${fmt(state.end)} (${(state.end - state.start) / 60} ч)`;
-  else el.hint.textContent = 'Кликните по свободному слоту.';
-  syncForm();
+
+  // Остаток дня
+  if (currentStart < DAY_END) {
+    hasFree = true;
+    const div = document.createElement('div'); div.className = 'list-item free-item';
+    div.innerHTML = `<div><div class="b-name">${fmt(currentStart)}–${fmt(DAY_END)}</div></div>`;
+    el.freeList.appendChild(div);
+  }
+
+  if (!hasFree) el.freeList.innerHTML = '<div class="empty-state">Свободных окон нет.</div>';
+
+  // 3. Настраиваем форму
+  renderForm();
 }
 
-function renderForm(dayBookings) {
-  el.form.style.display = 'block';
+// ==========================================
+// 7. ФОРМА И ЕЁ ПРОВЕРКА
+// ==========================================
+function renderForm() {
   el.startSel.innerHTML = '';
   for (let m = DAY_START; m < DAY_END; m += SLOT_STEP) {
-    const opt = document.createElement('option'); opt.value = m; opt.textContent = `${fmt(m)}–${fmt(m+15)}`; el.startSel.appendChild(opt);
+    const opt = document.createElement('option'); opt.value = m; opt.textContent = fmt(m); el.startSel.appendChild(opt);
   }
-  el.startSel.onchange = () => { state.start = Number(el.startSel.value); state.end = state.start + Number(el.durSel.value || MIN_DUR); updateUI(); };
-  el.durSel.onchange = () => { if (state.start !== null) { state.end = state.start + Number(el.durSel.value); updateUI(); } };
-  [el.name, el.contact].forEach(input => {
-    input.oninput = () => { hideMsg(); el.btn.disabled = !(state.start !== null && state.end !== null && el.name.value.length > 1 && el.contact.value.length > 1); };
-  });
-  syncForm();
+  
+  el.durSel.innerHTML = '';
+  for (let d = MIN_DUR; d <= MAX_DUR; d += SLOT_STEP) {
+    const opt = document.createElement('option'); opt.value = d; opt.textContent = durationStr(d); el.durSel.appendChild(opt);
+  }
+
+  el.name.oninput = () => checkForm();
+  el.contact.oninput = () => checkForm();
+  el.startSel.onchange = () => checkForm();
+  el.durSel.onchange = () => checkForm();
+
+  checkForm();
 }
 
-function syncForm() {
-  if (state.start !== null) {
-    el.startSel.value = state.start;
-    const maxDur = Math.min(MAX_DUR, DAY_END - state.start);
-    el.durSel.innerHTML = '';
-    for (let d = MIN_DUR; d <= maxDur; d += SLOT_STEP) {
-      const opt = document.createElement('option'); opt.value = d; opt.textContent = `${d / 60} ч`; el.durSel.appendChild(opt);
+function checkForm() {
+  el.msg.className = 'msg'; el.msg.textContent = '';
+  el.btn.disabled = true;
+
+  const start = Number(el.startSel.value);
+  const dur = Number(el.durSel.value);
+  const end = start + dur;
+  const name = el.name.value.trim();
+  const contact = el.contact.value.trim();
+
+  if (!name || !contact) return;
+  if (end > DAY_END) { el.msg.textContent = 'Бронь выходит за пределы рабочего дня (до 21:00).'; el.msg.className = 'msg error show'; return; }
+
+  const now = new Date();
+  const isToday = state.date === getKey(now.getFullYear(), now.getMonth(), now.getDate());
+  const nowMins = now.getHours() * 60 + now.getMinutes();
+  if (isToday && start < nowMins) { el.msg.textContent = 'Нельзя бронировать время в прошлом.'; el.msg.className = 'msg error show'; return; }
+
+  const dayBookings = state.bookings.filter(b => b.date === state.date);
+  
+  for (const b of dayBookings) {
+    // Пересечение
+    if (start < b.end && end > b.start) {
+      el.msg.textContent = `Пересечение с бронью ${fmt(b.start)}–${fmt(b.end)} (${b.name}).`;
+      el.msg.className = 'msg error show'; return;
     }
-    if (state.end !== null) el.durSel.value = Math.min(state.end - state.start, maxDur);
+    // Тот же человек?
+    const same = b.name.trim().toLowerCase() === name.toLowerCase() && b.contact.trim().toLowerCase() === contact.toLowerCase();
+    if (same) continue;
+
+    // Перерыв
+    if (start >= b.end && start < b.end + BREAK) {
+      el.msg.textContent = `Нужен перерыв 15 минут после брони ${fmt(b.start)}–${fmt(b.end)}.`;
+      el.msg.className = 'msg error show'; return;
+    }
+    if (end <= b.start && end + BREAK > b.start) {
+      el.msg.textContent = `Нужен перерыв 15 минут до брони ${fmt(b.start)}–${fmt(b.end)}.`;
+      el.msg.className = 'msg error show'; return;
+    }
   }
-  el.btn.disabled = !(state.start !== null && state.end !== null && el.name.value.length > 1 && el.contact.value.length > 1);
+
+  el.btn.disabled = false;
 }
 
 el.btn.onclick = async () => {
-  hideMsg();
   const b = {
     id: Date.now().toString(36) + Math.random().toString(36).slice(2,6),
-    date: state.date, start: state.start, end: state.end,
+    date: state.date, start: Number(el.startSel.value), end: Number(el.startSel.value) + Number(el.durSel.value),
     name: el.name.value.trim(), contact: el.contact.value.trim(),
     code: Math.random().toString(36).substring(2, 8).toUpperCase()
   };
@@ -242,28 +282,17 @@ el.btn.onclick = async () => {
     await createBooking(b);
     await loadData();
     el.codeVal.textContent = b.code; el.codeBox.style.display = 'block';
-    showMsg('Бронь создана! Сохраните код.', 'success');
-    state.start = null; state.end = null;
+    el.msg.textContent = 'Бронь создана! Сохраните код.'; el.msg.className = 'msg success show';
     renderCalendar(); renderDay();
   } catch (e) {
-    showMsg('Ошибка при сохранении: ' + e.message, 'error');
+    el.msg.textContent = 'Ошибка при сохранении: ' + e.message; el.msg.className = 'msg error show';
   } finally {
     el.btn.textContent = 'Забронировать';
   }
 };
 
-function renderList(dayBookings) {
-  el.list.innerHTML = '';
-  if (!dayBookings.length) { el.list.innerHTML = '<div class="empty-state">Броней нет.</div>'; return; }
-  dayBookings.forEach(b => {
-    const div = document.createElement('div'); div.className = 'booking-item';
-    div.innerHTML = `<div class="b-time">${fmt(b.start)}–${fmt(b.end)}</div><div><b>${b.name}</b></div><div class="b-meta">${b.contact}</div><div class="b-actions"><button class="btn btn-danger" onclick="openModal('${b.id}', '${b.name}')">Отменить</button></div>`;
-    el.list.appendChild(div);
-  });
-}
-
 // ==========================================
-// 5. МОДАЛКА
+// 8. МОДАЛКА ОТМЕНЫ
 // ==========================================
 let cancelId = null;
 window.openModal = (id, name) => { cancelId = id; el.modalText.textContent = `Отмена брони (${name}). Введите код:`; el.modalInput.value = ''; el.modalMsg.className = 'msg error'; el.modal.classList.add('show'); };
@@ -283,18 +312,14 @@ el.modalConfirm.onclick = async () => {
   }
 };
 
-function showMsg(text, type) { el.msg.textContent = text; el.msg.className = 'msg show ' + type; }
-function hideMsg() { el.msg.className = 'msg'; }
-
 // ==========================================
-// 6. ЗАПУСК
+// 9. ЗАПУСК
 // ==========================================
 el.prev.onclick = () => { state.m--; if (state.m < 0) { state.m = 11; state.y--; } renderCalendar(); };
 el.next.onclick = () => { state.m++; if (state.m > 11) { state.m = 0; state.y++; } renderCalendar(); };
 
 (async () => {
   renderCalendar();
-  el.slotsWrap.innerHTML = '<div class="empty-state">Загрузка...</div>';
   await loadData();
   if (!state.date) {
     const now = new Date();
