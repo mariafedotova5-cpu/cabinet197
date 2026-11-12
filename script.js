@@ -5,13 +5,27 @@ const SUPABASE_URL = 'https://wzsiyaiglwlmrjawzlfx.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_VG-dBW79sG160FL1BGtbzQ_7pnoZ7uV';
 
 // Заголовки для всех запросов к Supabase
+// Убрали Authorization, так как новые ключи sb_publishable работают только с apikey
 function supabaseHeaders(extra = {}) {
   return {
     'apikey': SUPABASE_KEY,
-    'Authorization': `Bearer ${SUPABASE_KEY}`,
     'Content-Type': 'application/json',
     ...extra,
   };
+}
+
+// Обертка для fetch с таймаутом (чтобы сайт не зависал навсегда при ошибке сети)
+async function fetchWithTimeout(url, options = {}, timeout = 10000) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeout);
+  try {
+    const response = await fetch(url, { ...options, signal: controller.signal });
+    clearTimeout(id);
+    return response;
+  } catch (error) {
+    clearTimeout(id);
+    throw error;
+  }
 }
 
 /* ============================================================
@@ -87,7 +101,7 @@ function escapeHtml(s) {
 
 // GET: все брони
 async function loadBookingsFromAPI() {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/bookings?select=*`, {
+  const res = await fetchWithTimeout(`${SUPABASE_URL}/rest/v1/bookings?select=*`, {
     method: 'GET',
     headers: supabaseHeaders(),
   });
@@ -99,7 +113,7 @@ async function loadBookingsFromAPI() {
 
 // POST: создать бронь
 async function saveBookingToAPI(booking) {
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/bookings`, {
+  const res = await fetchWithTimeout(`${SUPABASE_URL}/rest/v1/bookings`, {
     method: 'POST',
     headers: supabaseHeaders({ 'Prefer': 'return=representation' }),
     body: JSON.stringify({
@@ -123,7 +137,7 @@ async function saveBookingToAPI(booking) {
 
 // DELETE: отменить бронь
 async function cancelBookingOnAPI(id, code) {
-  const getRes = await fetch(
+  const getRes = await fetchWithTimeout(
     `${SUPABASE_URL}/rest/v1/bookings?id=eq.${encodeURIComponent(id)}&select=*`,
     { headers: supabaseHeaders() }
   );
@@ -135,7 +149,7 @@ async function cancelBookingOnAPI(id, code) {
     throw new Error('Неверный код');
   }
 
-  const delRes = await fetch(
+  const delRes = await fetchWithTimeout(
     `${SUPABASE_URL}/rest/v1/bookings?id=eq.${encodeURIComponent(id)}`,
     { method: 'DELETE', headers: supabaseHeaders() }
   );
