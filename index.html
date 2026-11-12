@@ -3,9 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Бронирование переговорной</title>
+  <title>Бронирование кабинета 197</title>
   
-  <!-- СТИЛИ ВСТРОЕНЫ ПРЯМО СЮДА -->
   <style>
     :root {
       --bg: #f4f6fb; --card: #ffffff; --text: #1f2937; --muted: #6b7280;
@@ -23,7 +22,6 @@
     h2 { margin: 0 0 12px; font-size: 18px; }
     h3 { font-size: 15px; margin-top: 0; }
     
-    /* Календарь */
     .calendar-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
     .calendar-head button { background: #eef2ff; border: 1px solid #c7d2fe; color: var(--primary); border-radius: 10px; width: 38px; height: 38px; font-size: 18px; cursor: pointer; }
     .calendar-head button:hover { background: #e0e7ff; }
@@ -39,7 +37,6 @@
     .day.selected { background: var(--primary) !important; color: #fff !important; border-color: var(--primary) !important; }
     .day.has-bookings::after { content: ""; position: absolute; bottom: 5px; width: 6px; height: 6px; border-radius: 50%; background: var(--danger); }
     
-    /* Формы */
     .form-row { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
     .form-row label { font-size: 13px; font-weight: 600; color: var(--muted); }
     input[type="text"], select { padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border); font-size: 14px; background: #fff; color: var(--text); width: 100%; }
@@ -51,7 +48,6 @@
     .btn-danger { background: var(--danger); color: #fff; }
     .btn-danger:hover { background: #b91c1c; }
     
-    /* Списки */
     .list-block { display: flex; flex-direction: column; gap: 8px; font-size: 14px; }
     .list-item { background: #f9fafb; padding: 10px 14px; border-radius: 8px; border-left: 4px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
     .list-item.busy-item { background: #fef2f2; border-left-color: var(--danger); }
@@ -64,11 +60,12 @@
     .msg.error { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
     .msg.success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
     
-    .code-box { margin-top: 10px; padding: 12px; border-radius: 12px; background: #ecfdf5; border: 1px dashed #10b981; text-align: center; }
-    .code-box .code-label { font-size: 12px; color: #047857; }
-    .code-box .code-value { font-size: 22px; font-weight: 800; letter-spacing: 2px; color: #065f46; margin: 4px 0 8px; font-family: monospace; }
+    .code-box { margin-top: 10px; padding: 16px; border-radius: 12px; background: #ecfdf5; border: 1px dashed #10b981; text-align: center; }
+    .code-box .code-label { font-size: 13px; color: #047857; margin-bottom: 4px; }
+    .code-box .code-value { font-size: 28px; font-weight: 800; letter-spacing: 3px; color: #065f46; margin: 8px 0 16px; font-family: monospace; }
+    .code-box .actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+    .code-box .actions button { padding: 8px 12px; font-size: 13px; width: auto; border-radius: 8px; }
     
-    /* Модалка */
     .modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(17, 24, 39, 0.55); z-index: 100; align-items: center; justify-content: center; padding: 16px; }
     .modal-backdrop.show { display: flex; }
     .modal { background: #fff; border-radius: 16px; max-width: 420px; width: 100%; padding: 20px; box-shadow: 0 20px 50px rgba(0,0,0,0.25); }
@@ -81,8 +78,8 @@
 </head>
 <body>
   <header>
-    <h1>Переговорная комната</h1>
-    <p>Бронирование только по субботам и воскресеньям · 09:00–21:00</p>
+    <h1>Бронирование кабинета 197</h1>
+    <p>Доступно только по субботам и воскресеньям · 09:00–21:00</p>
   </header>
 
   <main>
@@ -126,13 +123,18 @@
           </div>
           <div class="form-row">
             <label for="contactInput">Контакт</label>
-            <input type="text" id="contactInput" maxlength="120" placeholder="+7 900 000-00-00" />
+            <input type="text" id="contactInput" maxlength="120" placeholder="Укажите контакт, как с вами можно связаться" />
           </div>
           <div class="msg" id="formMsg"></div>
           <button class="btn btn-primary" id="bookBtn" disabled>Забронировать</button>
+          
           <div class="code-box" id="codeBox" style="display:none;">
-            <div class="code-label">Код вашей брони:</div>
+            <div class="code-label">Код вашей брони (сохраните его):</div>
             <div class="code-value" id="codeValue">—</div>
+            <div class="actions">
+              <button class="btn btn-secondary" id="copyBtn">Скопировать код</button>
+              <button class="btn btn-secondary" id="emailBtn">Отправить на почту</button>
+            </div>
           </div>
         </div>
       </div>
@@ -155,7 +157,6 @@
     </div>
   </div>
 
-  <!-- СКРИПТ ТОЖЕ ВСТРОЕН ПРЯМО СЮДА -->
   <script>
     const SUPABASE_URL = 'https://wzsiyaiglwlmrjawzlfx.supabase.co';
     const SUPABASE_KEY = 'sb_publishable_VG-dBW79sG160FL1BGtbzQ_7pnoZ7uV';
@@ -165,6 +166,7 @@
     const MONTHS = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
     
     let state = { y: new Date().getFullYear(), m: new Date().getMonth(), date: null, bookings: [], error: null };
+    let lastBookingInfo = null; // Храним данные последней созданной брони для отправки на почту
 
     function fmt(mins) { return String(Math.floor(mins / 60)).padStart(2, '0') + ':' + String(mins % 60).padStart(2, '0'); }
     function getKey(y, m, d) { return `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`; }
@@ -200,6 +202,7 @@
       name: document.getElementById('nameInput'), contact: document.getElementById('contactInput'),
       msg: document.getElementById('formMsg'), btn: document.getElementById('bookBtn'),
       codeBox: document.getElementById('codeBox'), codeVal: document.getElementById('codeValue'),
+      copyBtn: document.getElementById('copyBtn'), emailBtn: document.getElementById('emailBtn'),
       modal: document.getElementById('cancelModal'), modalText: document.getElementById('cancelModalText'),
       modalInput: document.getElementById('cancelCodeInput'), modalMsg: document.getElementById('cancelMsg'),
       modalClose: document.getElementById('cancelModalClose'), modalConfirm: document.getElementById('cancelModalConfirm')
@@ -236,10 +239,8 @@
       if (!state.date) return;
       const dObj = new Date(state.date);
       el.dayTitle.textContent = `${dObj.getDay() === 6 ? 'Суббота' : 'Воскресенье'}, ${dObj.getDate()} ${MONTHS[dObj.getMonth()].toLowerCase()} ${dObj.getFullYear()}`;
-      if (state.error) {
-        el.dayInfoWrap.style.display = 'none';
-        return;
-      }
+      if (state.error) { el.dayInfoWrap.style.display = 'none'; return; }
+      
       el.dayInfoWrap.style.display = 'block';
       const dayBookings = state.bookings.filter(b => b.date === state.date).sort((a,b) => a.start - b.start);
 
@@ -306,14 +307,66 @@
     }
 
     el.btn.onclick = async () => {
-      const b = { id: Date.now().toString(36), date: state.date, start: Number(el.startSel.value), end: Number(el.startSel.value) + Number(el.durSel.value), name: el.name.value.trim(), contact: el.contact.value.trim(), code: Math.random().toString(36).substring(2, 8).toUpperCase() };
+      const b = { 
+        id: Date.now().toString(36), 
+        date: state.date, 
+        start: Number(el.startSel.value), 
+        end: Number(el.startSel.value) + Number(el.durSel.value), 
+        name: el.name.value.trim(), 
+        contact: el.contact.value.trim(), 
+        code: Math.random().toString(36).substring(2, 8).toUpperCase() 
+      };
+      
       el.btn.textContent = 'Отправка...'; el.btn.disabled = true;
+      
       try {
-        await createBooking(b); await loadData();
-        el.codeVal.textContent = b.code; el.codeBox.style.display = 'block';
-        el.msg.textContent = 'Бронь создана!'; el.msg.className = 'msg success show';
-        renderCalendar(); renderDay();
-      } catch (e) { el.msg.textContent = 'Ошибка: ' + e.message; el.msg.className = 'msg error show'; } finally { el.btn.textContent = 'Забронировать'; }
+        await createBooking(b); 
+        await loadData();
+        
+        // Сохраняем данные для кнопки "Отправить на почту"
+        lastBookingInfo = { date: state.date, start: b.start, end: b.end, code: b.code };
+        
+        el.codeVal.textContent = b.code; 
+        el.codeBox.style.display = 'block';
+        el.msg.textContent = 'Бронь создана!'; 
+        el.msg.className = 'msg success show';
+        
+        renderCalendar(); 
+        renderDay();
+      } catch (e) { 
+        el.msg.textContent = 'Ошибка: ' + e.message; 
+        el.msg.className = 'msg error show'; 
+      } finally { 
+        el.btn.textContent = 'Забронировать'; 
+      }
+    };
+
+    // --- Кнопки копирования и отправки на почту ---
+    el.copyBtn.onclick = () => {
+      const code = el.codeVal.textContent;
+      navigator.clipboard.writeText(code).then(() => {
+        el.copyBtn.textContent = 'Скопировано!';
+        setTimeout(() => el.copyBtn.textContent = 'Скопировать код', 2000);
+      }).catch(() => alert('Не удалось скопировать. Выделите код вручную.'));
+    };
+
+    el.emailBtn.onclick = () => {
+      if (!lastBookingInfo) return;
+      
+      // Форматируем дату красиво для письма
+      const dObj = new Date(lastBookingInfo.date);
+      const dateStr = `${dObj.getDate()} ${MONTHS[dObj.getMonth()].toLowerCase()} ${dObj.getFullYear()}`;
+      
+      const subject = encodeURIComponent(`Бронирование кабинета 197: ${dateStr}`);
+      const body = encodeURIComponent(
+        `Здравствуйте!\n\nВы забронировали кабинет 197.\n\n` +
+        `Дата: ${dateStr}\n` +
+        `Время: с ${fmt(lastBookingInfo.start)} до ${fmt(lastBookingInfo.end)}\n` +
+        `Код брони: ${lastBookingInfo.code}\n\n` +
+        `Сохраните это письмо. Код нужен для отмены брони.`
+      );
+      
+      window.location.href = `mailto:?subject=${subject}&body=${body}`;
     };
 
     let cancelId = null;
