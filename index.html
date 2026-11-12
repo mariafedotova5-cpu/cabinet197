@@ -4,7 +4,80 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Бронирование переговорной</title>
-  <link rel="stylesheet" href="style.css" />
+  
+  <!-- СТИЛИ ВСТРОЕНЫ ПРЯМО СЮДА -->
+  <style>
+    :root {
+      --bg: #f4f6fb; --card: #ffffff; --text: #1f2937; --muted: #6b7280;
+      --border: #e5e7eb; --primary: #4f46e5; --primary-hover: #4338ca;
+      --danger: #dc2626; --radius: 14px; --shadow: 0 8px 24px rgba(17, 24, 39, 0.08);
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.45; }
+    header { padding: 24px 16px 8px; text-align: center; }
+    header h1 { margin: 0 0 6px; font-size: 24px; }
+    header p { margin: 0; color: var(--muted); font-size: 14px; }
+    main { max-width: 1100px; margin: 0 auto; padding: 16px; display: grid; grid-template-columns: 1fr 1.4fr; gap: 16px; }
+    @media (max-width: 860px) { main { grid-template-columns: 1fr; } }
+    .card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px; }
+    h2 { margin: 0 0 12px; font-size: 18px; }
+    h3 { font-size: 15px; margin-top: 0; }
+    
+    /* Календарь */
+    .calendar-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .calendar-head button { background: #eef2ff; border: 1px solid #c7d2fe; color: var(--primary); border-radius: 10px; width: 38px; height: 38px; font-size: 18px; cursor: pointer; }
+    .calendar-head button:hover { background: #e0e7ff; }
+    .calendar-title { font-weight: 600; font-size: 16px; text-transform: capitalize; }
+    .weekdays, .days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+    .weekdays div { text-align: center; font-size: 12px; color: var(--muted); padding: 4px 0; font-weight: 600; }
+    .day { aspect-ratio: 1 / 1; display: flex; align-items: center; justify-content: center; border-radius: 10px; border: 1px solid transparent; font-size: 14px; cursor: pointer; user-select: none; position: relative; transition: background 0.12s; }
+    .day.empty { cursor: default; }
+    .day.disabled { color: #c0c4cc; cursor: not-allowed; }
+    .day.weekend { background: #eef2ff; border-color: #c7d2fe; font-weight: 600; }
+    .day.weekend:hover { background: #e0e7ff; }
+    .day.today { outline: 2px solid var(--primary); outline-offset: -2px; }
+    .day.selected { background: var(--primary) !important; color: #fff !important; border-color: var(--primary) !important; }
+    .day.has-bookings::after { content: ""; position: absolute; bottom: 5px; width: 6px; height: 6px; border-radius: 50%; background: var(--danger); }
+    
+    /* Формы */
+    .form-row { display: flex; flex-direction: column; gap: 4px; margin-bottom: 10px; }
+    .form-row label { font-size: 13px; font-weight: 600; color: var(--muted); }
+    input[type="text"], select { padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border); font-size: 14px; background: #fff; color: var(--text); width: 100%; }
+    input:focus, select:focus { outline: 2px solid var(--primary); outline-offset: 1px; border-color: var(--primary); }
+    button.btn { border: none; border-radius: 10px; padding: 12px 16px; font-size: 15px; font-weight: 600; cursor: pointer; width: 100%; transition: background 0.15s; }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .btn-danger:hover { background: #b91c1c; }
+    
+    /* Списки */
+    .list-block { display: flex; flex-direction: column; gap: 8px; font-size: 14px; }
+    .list-item { background: #f9fafb; padding: 10px 14px; border-radius: 8px; border-left: 4px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+    .list-item.busy-item { background: #fef2f2; border-left-color: var(--danger); }
+    .list-item.free-item { background: #ecfdf5; border-left-color: #10b981; }
+    .list-item .b-name { font-weight: 600; }
+    .list-item .b-meta { color: var(--muted); font-size: 12px; }
+    
+    .msg { border-radius: 10px; padding: 10px 12px; font-size: 13px; margin: 8px 0; display: none; }
+    .msg.show { display: block; }
+    .msg.error { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+    .msg.success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
+    
+    .code-box { margin-top: 10px; padding: 12px; border-radius: 12px; background: #ecfdf5; border: 1px dashed #10b981; text-align: center; }
+    .code-box .code-label { font-size: 12px; color: #047857; }
+    .code-box .code-value { font-size: 22px; font-weight: 800; letter-spacing: 2px; color: #065f46; margin: 4px 0 8px; font-family: monospace; }
+    
+    /* Модалка */
+    .modal-backdrop { display: none; position: fixed; inset: 0; background: rgba(17, 24, 39, 0.55); z-index: 100; align-items: center; justify-content: center; padding: 16px; }
+    .modal-backdrop.show { display: flex; }
+    .modal { background: #fff; border-radius: 16px; max-width: 420px; width: 100%; padding: 20px; box-shadow: 0 20px 50px rgba(0,0,0,0.25); }
+    .modal-actions { display: flex; gap: 8px; margin-top: 14px; }
+    .modal-actions button { flex: 1; width: auto; }
+    .btn-secondary { background: #f3f4f6; color: var(--text); border: 1px solid var(--border); }
+    .btn-secondary:hover { background: #e5e7eb; }
+    footer { text-align: center; color: var(--muted); font-size: 12px; padding: 20px 16px 30px; }
+  </style>
 </head>
 <body>
   <header>
@@ -13,7 +86,6 @@
   </header>
 
   <main>
-    <!-- ЛЕВАЯ КОЛОНКА: КАЛЕНДАРЬ -->
     <section class="card">
       <div class="calendar-head">
         <button id="prevMonth">‹</button>
@@ -26,27 +98,20 @@
       <div class="days" id="daysGrid"></div>
     </section>
 
-    <!-- ПРАВАЯ КОЛОНКА: ИНФОРМАЦИЯ О ДНЕ И ФОРМА -->
     <section class="card">
       <div class="section-title">
         <h2 id="selectedDayTitle">Выберите день</h2>
       </div>
 
-      <!-- Этот блок скрыт, пока день не выбран -->
       <div id="dayInfoWrap" style="display:none;">
-        
-        <!-- Занятые слоты (с кнопками отмены) -->
-        <h3 style="font-size: 15px; margin-top: 0;">Занятое время:</h3>
+        <h3>Занятое время:</h3>
         <div id="busyList" class="list-block"></div>
 
-        <!-- Свободные окна -->
-        <h3 style="font-size: 15px; margin-top: 16px;">Свободные окна:</h3>
+        <h3 style="margin-top: 16px;">Свободные окна:</h3>
         <div id="freeList" class="list-block"></div>
 
-        <!-- Форма бронирования -->
         <div id="bookingForm" style="margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border);">
           <h2>Новая бронь</h2>
-
           <div class="form-row">
             <label for="startSelect">Время начала</label>
             <select id="startSelect"></select>
@@ -60,27 +125,20 @@
             <input type="text" id="nameInput" maxlength="60" placeholder="Иван Иванов" />
           </div>
           <div class="form-row">
-            <label for="contactInput">Контакт (телефон или комментарий)</label>
+            <label for="contactInput">Контакт</label>
             <input type="text" id="contactInput" maxlength="120" placeholder="+7 900 000-00-00" />
           </div>
-
           <div class="msg" id="formMsg"></div>
           <button class="btn btn-primary" id="bookBtn" disabled>Забронировать</button>
-
           <div class="code-box" id="codeBox" style="display:none;">
-            <div class="code-label">Код вашей брони (сохраните его)</div>
+            <div class="code-label">Код вашей брони:</div>
             <div class="code-value" id="codeValue">—</div>
-            <div class="code-note">Без кода отменить бронь нельзя.</div>
           </div>
         </div>
-
       </div>
     </section>
   </main>
 
-  <footer>Данные хранятся в Supabase. Сайт работает на GitHub Pages.</footer>
-
-  <!-- Модальное окно отмены -->
   <div class="modal-backdrop" id="cancelModal">
     <div class="modal">
       <h3>Отмена брони</h3>
@@ -92,11 +150,196 @@
       <div class="msg error" id="cancelMsg"></div>
       <div class="modal-actions">
         <button class="btn btn-secondary" id="cancelModalClose">Закрыть</button>
-        <button class="btn btn-danger" id="cancelModalConfirm">Отменить бронь</button>
+        <button class="btn btn-danger" id="cancelModalConfirm">Отменить</button>
       </div>
     </div>
   </div>
 
-  <script src="script.js"></script>
+  <!-- СКРИПТ ТОЖЕ ВСТРОЕН ПРЯМО СЮДА -->
+  <script>
+    const SUPABASE_URL = 'https://wzsiyaiglwlmrjawzlfx.supabase.co';
+    const SUPABASE_KEY = 'sb_publishable_VG-dBW79sG160FL1BGtbzQ_7pnoZ7uV';
+    const HEADERS = { 'apikey': SUPABASE_KEY, 'Content-Type': 'application/json' };
+
+    const DAY_START = 9 * 60, DAY_END = 21 * 60, SLOT_STEP = 15, BREAK = 15, MIN_DUR = 60, MAX_DUR = 8 * 60;
+    const MONTHS = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+    
+    let state = { y: new Date().getFullYear(), m: new Date().getMonth(), date: null, bookings: [], error: null };
+
+    function fmt(mins) { return String(Math.floor(mins / 60)).padStart(2, '0') + ':' + String(mins % 60).padStart(2, '0'); }
+    function getKey(y, m, d) { return `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`; }
+    function isWeekend(d) { return d.getDay() === 0 || d.getDay() === 6; }
+    function durationStr(mins) { const h = Math.floor(mins / 60), m = mins % 60; return h && m ? `${h} ч ${m} мин` : h ? `${h} ч` : `${m} мин`; }
+
+    async function loadData() {
+      try {
+        const res = await fetch(`${SUPABASE_URL}/rest/v1/bookings?select=*`, { headers: HEADERS });
+        if (!res.ok) throw new Error('Ошибка ' + res.status);
+        state.bookings = await res.json(); state.error = null;
+      } catch (e) { state.error = e.message; state.bookings = []; }
+    }
+
+    async function createBooking(b) {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/bookings`, { method: 'POST', headers: HEADERS, body: JSON.stringify(b) });
+      if (!res.ok) throw new Error('Ошибка сохранения');
+    }
+
+    async function deleteBooking(id, code) {
+      const res = await fetch(`${SUPABASE_URL}/rest/v1/bookings?id=eq.${id}&select=*`, { headers: HEADERS });
+      const data = await res.json();
+      if (!data.length || data[0].code !== code) throw new Error('Неверный код');
+      await fetch(`${SUPABASE_URL}/rest/v1/bookings?id=eq.${id}`, { method: 'DELETE', headers: HEADERS });
+    }
+
+    const el = {
+      days: document.getElementById('daysGrid'), title: document.getElementById('calendarTitle'),
+      prev: document.getElementById('prevMonth'), next: document.getElementById('nextMonth'),
+      dayTitle: document.getElementById('selectedDayTitle'), dayInfoWrap: document.getElementById('dayInfoWrap'),
+      busyList: document.getElementById('busyList'), freeList: document.getElementById('freeList'),
+      startSel: document.getElementById('startSelect'), durSel: document.getElementById('durationSelect'),
+      name: document.getElementById('nameInput'), contact: document.getElementById('contactInput'),
+      msg: document.getElementById('formMsg'), btn: document.getElementById('bookBtn'),
+      codeBox: document.getElementById('codeBox'), codeVal: document.getElementById('codeValue'),
+      modal: document.getElementById('cancelModal'), modalText: document.getElementById('cancelModalText'),
+      modalInput: document.getElementById('cancelCodeInput'), modalMsg: document.getElementById('cancelMsg'),
+      modalClose: document.getElementById('cancelModalClose'), modalConfirm: document.getElementById('cancelModalConfirm')
+    };
+
+    function renderCalendar() {
+      el.title.textContent = `${MONTHS[state.m]} ${state.y}`;
+      el.days.innerHTML = '';
+      const first = new Date(state.y, state.m, 1);
+      let lead = first.getDay() - 1; if (lead < 0) lead = 6;
+      const total = new Date(state.y, state.m + 1, 0).getDate();
+      const today = new Date(); today.setHours(0,0,0,0);
+      for (let i = 0; i < lead; i++) el.days.innerHTML += `<div class="day empty"></div>`;
+      const bookedDates = new Set(state.bookings.map(b => b.date));
+
+      for (let d = 1; d <= total; d++) {
+        const dateObj = new Date(state.y, state.m, d);
+        const key = getKey(state.y, state.m, d);
+        const isW = isWeekend(dateObj), isPast = dateObj < today;
+        let cls = 'day';
+        if (!isW || isPast) cls += ' disabled'; else cls += ' weekend';
+        if (key === getKey(today.getFullYear(), today.getMonth(), today.getDate())) cls += ' today';
+        if (bookedDates.has(key)) cls += ' has-bookings';
+        if (state.date === key) cls += ' selected';
+
+        const div = document.createElement('div');
+        div.className = cls; div.textContent = d;
+        if (isW && !isPast) div.onclick = () => { state.date = key; el.codeBox.style.display = 'none'; renderCalendar(); renderDay(); };
+        el.days.appendChild(div);
+      }
+    }
+
+    function renderDay() {
+      if (!state.date) return;
+      const dObj = new Date(state.date);
+      el.dayTitle.textContent = `${dObj.getDay() === 6 ? 'Суббота' : 'Воскресенье'}, ${dObj.getDate()} ${MONTHS[dObj.getMonth()].toLowerCase()} ${dObj.getFullYear()}`;
+      if (state.error) {
+        el.dayInfoWrap.style.display = 'none';
+        return;
+      }
+      el.dayInfoWrap.style.display = 'block';
+      const dayBookings = state.bookings.filter(b => b.date === state.date).sort((a,b) => a.start - b.start);
+
+      el.busyList.innerHTML = '';
+      if (!dayBookings.length) el.busyList.innerHTML = '<div class="empty-state" style="color:#6b7280;font-size:14px;">Нет броней. Весь день свободен.</div>';
+      else dayBookings.forEach(b => {
+        const div = document.createElement('div'); div.className = 'list-item busy-item';
+        div.innerHTML = `<div><div class="b-name">${fmt(b.start)}–${fmt(b.end)} (${b.name})</div><div class="b-meta">${b.contact}</div></div><button class="btn btn-danger" style="width:auto; padding: 6px 10px; font-size: 12px;" onclick="openModal('${b.id}', '${b.name}')">Отменить</button>`;
+        el.busyList.appendChild(div);
+      });
+
+      el.freeList.innerHTML = '';
+      let currentStart = DAY_START, hasFree = false;
+      dayBookings.forEach(b => {
+        if (b.start > currentStart) {
+          let actualEnd = (b.start - BREAK > currentStart) ? b.start - BREAK : b.start;
+          if (actualEnd > currentStart) {
+            hasFree = true;
+            el.freeList.innerHTML += `<div class="list-item free-item"><div class="b-name">${fmt(currentStart)}–${fmt(actualEnd)}</div></div>`;
+          }
+        }
+        currentStart = b.end + BREAK;
+      });
+      if (currentStart < DAY_END) {
+        hasFree = true;
+        el.freeList.innerHTML += `<div class="list-item free-item"><div class="b-name">${fmt(currentStart)}–${fmt(DAY_END)}</div></div>`;
+      }
+      if (!hasFree) el.freeList.innerHTML = '<div class="empty-state" style="color:#6b7280;font-size:14px;">Свободных окон нет.</div>';
+
+      renderForm();
+    }
+
+    function renderForm() {
+      el.startSel.innerHTML = '';
+      for (let m = DAY_START; m < DAY_END; m += SLOT_STEP) el.startSel.innerHTML += `<option value="${m}">${fmt(m)}</option>`;
+      el.durSel.innerHTML = '';
+      for (let d = MIN_DUR; d <= MAX_DUR; d += SLOT_STEP) el.durSel.innerHTML += `<option value="${d}">${durationStr(d)}</option>`;
+      
+      el.name.oninput = checkForm; el.contact.oninput = checkForm;
+      el.startSel.onchange = checkForm; el.durSel.onchange = checkForm;
+      checkForm();
+    }
+
+    function checkForm() {
+      el.msg.className = 'msg'; el.btn.disabled = true;
+      const start = Number(el.startSel.value), dur = Number(el.durSel.value), end = start + dur;
+      const name = el.name.value.trim(), contact = el.contact.value.trim();
+      if (!name || !contact) return;
+      if (end > DAY_END) { el.msg.textContent = 'Выходит за пределы дня (до 21:00).'; el.msg.className = 'msg error show'; return; }
+
+      const now = new Date();
+      const isToday = state.date === getKey(now.getFullYear(), now.getMonth(), now.getDate());
+      if (isToday && start < (now.getHours() * 60 + now.getMinutes())) { el.msg.textContent = 'Время в прошлом.'; el.msg.className = 'msg error show'; return; }
+
+      const dayBookings = state.bookings.filter(b => b.date === state.date);
+      for (const b of dayBookings) {
+        if (start < b.end && end > b.start) { el.msg.textContent = `Пересечение с ${fmt(b.start)}–${fmt(b.end)}.`; el.msg.className = 'msg error show'; return; }
+        const same = b.name.trim().toLowerCase() === name.toLowerCase() && b.contact.trim().toLowerCase() === contact.toLowerCase();
+        if (same) continue;
+        if (start >= b.end && start < b.end + BREAK) { el.msg.textContent = `Нужен перерыв 15 минут после ${fmt(b.start)}–${fmt(b.end)}.`; el.msg.className = 'msg error show'; return; }
+        if (end <= b.start && end + BREAK > b.start) { el.msg.textContent = `Нужен перерыв 15 минут до ${fmt(b.start)}–${fmt(b.end)}.`; el.msg.className = 'msg error show'; return; }
+      }
+      el.btn.disabled = false;
+    }
+
+    el.btn.onclick = async () => {
+      const b = { id: Date.now().toString(36), date: state.date, start: Number(el.startSel.value), end: Number(el.startSel.value) + Number(el.durSel.value), name: el.name.value.trim(), contact: el.contact.value.trim(), code: Math.random().toString(36).substring(2, 8).toUpperCase() };
+      el.btn.textContent = 'Отправка...'; el.btn.disabled = true;
+      try {
+        await createBooking(b); await loadData();
+        el.codeVal.textContent = b.code; el.codeBox.style.display = 'block';
+        el.msg.textContent = 'Бронь создана!'; el.msg.className = 'msg success show';
+        renderCalendar(); renderDay();
+      } catch (e) { el.msg.textContent = 'Ошибка: ' + e.message; el.msg.className = 'msg error show'; } finally { el.btn.textContent = 'Забронировать'; }
+    };
+
+    let cancelId = null;
+    window.openModal = (id, name) => { cancelId = id; el.modalText.textContent = `Отмена брони (${name}). Введите код:`; el.modalInput.value = ''; el.modalMsg.className = 'msg error'; el.modal.classList.add('show'); };
+    el.modalClose.onclick = () => el.modal.classList.remove('show');
+    el.modal.onclick = (e) => { if (e.target === el.modal) el.modal.classList.remove('show'); };
+    el.modalConfirm.onclick = async () => {
+      const code = el.modalInput.value.trim().toUpperCase();
+      if (!code) { el.modalMsg.textContent = 'Введите код.'; el.modalMsg.className = 'msg error show'; return; }
+      el.modalConfirm.textContent = '...'; el.modalConfirm.disabled = true;
+      try { await deleteBooking(cancelId, code); await loadData(); el.modal.classList.remove('show'); renderCalendar(); renderDay(); }
+      catch (e) { el.modalMsg.textContent = e.message; el.modalMsg.className = 'msg error show'; }
+      finally { el.modalConfirm.textContent = 'Отменить'; el.modalConfirm.disabled = false; }
+    };
+
+    el.prev.onclick = () => { state.m--; if (state.m < 0) { state.m = 11; state.y--; } renderCalendar(); };
+    el.next.onclick = () => { state.m++; if (state.m > 11) { state.m = 0; state.y++; } renderCalendar(); };
+
+    (async () => {
+      renderCalendar(); await loadData();
+      if (!state.date) {
+        const now = new Date();
+        for(let i=0; i<7; i++) { const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i); if (isWeekend(d)) { state.date = getKey(d.getFullYear(), d.getMonth(), d.getDate()); break; } }
+      }
+      renderCalendar(); renderDay();
+    })();
+  </script>
 </body>
 </html>
