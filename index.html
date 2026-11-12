@@ -24,63 +24,55 @@
         <div>Пн</div><div>Вт</div><div>Ср</div><div>Чт</div><div>Пт</div><div>Сб</div><div>Вс</div>
       </div>
       <div class="days" id="daysGrid"></div>
-      <div class="legend">
-        <span><i class="l-free"></i> свободно</span>
-        <span><i class="l-busy"></i> занято</span>
-        <span><i class="l-break"></i> перерыв</span>
-        <span><i class="l-past"></i> прошло</span>
-        <span><i class="l-sel"></i> выбрано</span>
-      </div>
     </section>
 
-    <!-- Слоты + форма -->
+    <!-- Информация о дне -->
     <section class="card">
       <div class="section-title">
         <h2 id="selectedDayTitle">Выберите день</h2>
-        <span class="badge" id="dayBadge"></span>
       </div>
 
-      <div id="slotsWrap">
-        <div class="empty-state">Выберите субботу или воскресенье в календаре.</div>
-      </div>
+      <div id="dayInfoWrap" style="display:none;">
+        
+        <!-- Занятые слоты -->
+        <h3 style="font-size: 15px; margin-top: 0;">Занятое время:</h3>
+        <div id="busyList" class="list-block"></div>
 
-      <div id="bookingForm" style="display:none; margin-top:14px;">
-        <h2>Новая бронь</h2>
+        <!-- Свободные окна -->
+        <h3 style="font-size: 15px; margin-top: 16px;">Свободные окна:</h3>
+        <div id="freeList" class="list-block"></div>
 
-        <div class="form-row">
-          <label for="startSelect">Начало</label>
-          <select id="startSelect"></select>
-        </div>
-        <div class="form-row">
-          <label for="durationSelect">Длительность</label>
-          <select id="durationSelect"></select>
-        </div>
-        <div class="form-row">
-          <label for="nameInput">Ваше имя</label>
-          <input type="text" id="nameInput" maxlength="60" placeholder="Иван Иванов" />
-        </div>
-        <div class="form-row">
-          <label for="contactInput">Контакт (телефон или комментарий)</label>
-          <input type="text" id="contactInput" maxlength="120" placeholder="+7 900 000-00-00" />
+        <!-- Форма бронирования -->
+        <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border);">
+          <h2>Новая бронь</h2>
+
+          <div class="form-row">
+            <label for="startSelect">Время начала</label>
+            <select id="startSelect"></select>
+          </div>
+          <div class="form-row">
+            <label for="durationSelect">Длительность</label>
+            <select id="durationSelect"></select>
+          </div>
+          <div class="form-row">
+            <label for="nameInput">Ваше имя</label>
+            <input type="text" id="nameInput" maxlength="60" placeholder="Иван Иванов" />
+          </div>
+          <div class="form-row">
+            <label for="contactInput">Контакт (телефон или комментарий)</label>
+            <input type="text" id="contactInput" maxlength="120" placeholder="+7 900 000-00-00" />
+          </div>
+
+          <div class="msg" id="formMsg"></div>
+          <button class="btn btn-primary" id="bookBtn" disabled>Забронировать</button>
+
+          <div class="code-box" id="codeBox" style="display:none;">
+            <div class="code-label">Код вашей брони (сохраните его)</div>
+            <div class="code-value" id="codeValue">—</div>
+            <div class="code-note">Без кода отменить бронь нельзя.</div>
+          </div>
         </div>
 
-        <div class="hint" id="intervalHint">—</div>
-        <div class="msg" id="formMsg"></div>
-
-        <button class="btn btn-primary" id="bookBtn" disabled>Забронировать</button>
-
-        <div class="code-box" id="codeBox" style="display:none;">
-          <div class="code-label">Код вашей брони (сохраните его)</div>
-          <div class="code-value" id="codeValue">—</div>
-          <div class="code-note">Без кода отменить бронь нельзя.</div>
-        </div>
-      </div>
-
-      <div style="margin-top:16px;">
-        <h2>Брони на день</h2>
-        <div class="booking-list" id="bookingList">
-          <div class="empty-state">—</div>
-        </div>
       </div>
     </section>
   </main>
