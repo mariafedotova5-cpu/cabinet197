@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Бронирование переговорной</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>Переговорная комната</h1>
+    <p>Бронирование только по субботам и воскресеньям · 09:00–21:00</p>
+  </header>
+
+  <main>
+    <!-- Календарь -->
+    <section class="card">
+      <div class="calendar-head">
+        <button id="prevMonth">‹</button>
+        <div class="calendar-title" id="calendarTitle">—</div>
+        <button id="nextMonth">›</button>
+      </div>
+      <div class="weekdays">
+        <div>Пн</div><div>Вт</div><div>Ср</div><div>Чт</div><div>Пт</div><div>Сб</div><div>Вс</div>
+      </div>
+      <div class="days" id="daysGrid"></div>
+      <div class="legend">
+        <span><i class="l-free"></i> свободно</span>
+        <span><i class="l-busy"></i> занято</span>
+        <span><i class="l-break"></i> перерыв</span>
+        <span><i class="l-past"></i> прошло</span>
+        <span><i class="l-sel"></i> выбрано</span>
+      </div>
+    </section>
+
+    <!-- Слоты + форма -->
+    <section class="card">
+      <div class="section-title">
+        <h2 id="selectedDayTitle">Выберите день</h2>
+        <span class="badge" id="dayBadge"></span>
+      </div>
+
+      <div id="slotsWrap">
+        <div class="empty-state">Выберите субботу или воскресенье в календаре.</div>
+      </div>
+
+      <div id="bookingForm" style="display:none; margin-top:14px;">
+        <h2>Новая бронь</h2>
+
+        <div class="form-row">
+          <label for="startSelect">Начало</label>
+          <select id="startSelect"></select>
+        </div>
+        <div class="form-row">
+          <label for="durationSelect">Длительность</label>
+          <select id="durationSelect"></select>
+        </div>
+        <div class="form-row">
+          <label for="nameInput">Ваше имя</label>
+          <input type="text" id="nameInput" maxlength="60" placeholder="Иван Иванов" />
+        </div>
+        <div class="form-row">
+          <label for="contactInput">Контакт (телефон или комментарий)</label>
+          <input type="text" id="contactInput" maxlength="120" placeholder="+7 900 000-00-00" />
+        </div>
+
+        <div class="hint" id="intervalHint">—</div>
+        <div class="msg" id="formMsg"></div>
+
+        <button class="btn btn-primary" id="bookBtn" disabled>Забронировать</button>
+
+        <div class="code-box" id="codeBox" style="display:none;">
+          <div class="code-label">Код вашей брони (сохраните его)</div>
+          <div class="code-value" id="codeValue">—</div>
+          <div class="code-note">Без кода отменить бронь нельзя.</div>
+        </div>
+      </div>
+
+      <div style="margin-top:16px;">
+        <h2>Брони на день</h2>
+        <div class="booking-list" id="bookingList">
+          <div class="empty-state">—</div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>Данные хранятся в Google Sheets. Сайт работает на GitHub Pages.</footer>
+
+  <!-- Модальное окно отмены -->
+  <div class="modal-backdrop" id="cancelModal">
+    <div class="modal">
+      <h3>Отмена брони</h3>
+      <p id="cancelModalText">—</p>
+      <div class="form-row">
+        <label for="cancelCodeInput">Код брони</label>
+        <input type="text" id="cancelCodeInput" placeholder="Например, A1B2C3" autocomplete="off" />
+      </div>
+      <div class="msg error" id="cancelMsg"></div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" id="cancelModalClose">Закрыть</button>
+        <button class="btn btn-danger" id="cancelModalConfirm">Отменить бронь</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
